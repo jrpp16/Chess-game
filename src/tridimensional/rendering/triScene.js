@@ -141,10 +141,10 @@ export class TriSceneController {
     this.resignBtn?.addEventListener('click', () => this.handleResign());
     this.relocateBtn?.addEventListener('click', () => this.toggleRelocateMode());
 
-    root.querySelectorAll('input[name="tri-mode"]').forEach((input) => {
+    this.root.querySelectorAll('input[name="tri-mode"]').forEach((input) => {
       input.addEventListener('change', () => this.onModeSettingsChanged());
     });
-    root.querySelectorAll('input[name="tri-player-color"]').forEach((input) => {
+    this.root.querySelectorAll('input[name="tri-player-color"]').forEach((input) => {
       input.addEventListener('change', () => this.onModeSettingsChanged());
     });
     this.difficultyEl?.addEventListener('change', () => {
