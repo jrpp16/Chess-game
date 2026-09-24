@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
 import '../styles.css';
-import { chooseComputerMoveAsync, defaultPromotion, logSearchStats } from './engine/computer.js';
+import { chooseComputerMoveAsync, defaultPromotion, logSearchStats, invalidateComputerSearch } from './engine/computer.js';
 import { moveKey } from './engine/evaluation.js';
 import {
   getExperienceRepository,
@@ -226,30 +226,32 @@ async function runComputerMove() {
   thinkingBanner.classList.remove('hidden');
   updateUI();
 
-  const moveBiasMap = await buildMoveBiasMap(chess);
-  const { move, stats } = await chooseComputerMoveAsync(
-    chess.fen(),
-    difficulty,
-    computerColor,
-    moveBiasMap,
-  );
+  try {
+    const moveBiasMap = await buildMoveBiasMap(chess);
+    const { move, stats, stale } = await chooseComputerMoveAsync(
+      chess.fen(),
+      difficulty,
+      computerColor,
+      moveBiasMap,
+    );
 
-  logSearchStats(stats, difficulty);
+    logSearchStats(stats, difficulty);
 
-  isComputerThinking = false;
-  thinkingBanner.classList.add('hidden');
+    if (stale || !move) {
+      return;
+    }
 
-  if (!move) {
+    chess.move({ from: move.from, to: move.to, promotion: move.promotion ?? defaultPromotion() });
+    selectedSquare = null;
     updateUI();
-    return;
-  }
 
-  chess.move({ from: move.from, to: move.to, promotion: move.promotion ?? defaultPromotion() });
-  selectedSquare = null;
-  updateUI();
-
-  if (chess.isGameOver()) {
-    recordGameIfNeeded();
+    if (chess.isGameOver()) {
+      recordGameIfNeeded();
+    }
+  } finally {
+    isComputerThinking = false;
+    thinkingBanner.classList.add('hidden');
+    updateUI();
   }
 }
 
@@ -357,6 +359,7 @@ function applyModeFromUI() {
 
 function startNewGame() {
   applyModeFromUI();
+  invalidateComputerSearch();
   chess = new Chess();
   selectedSquare = null;
   gameResultRecorded = false;
@@ -383,6 +386,7 @@ export function initClassicApp() {
 
   btnUndo.addEventListener('click', () => {
   if (isComputerThinking) return;
+  invalidateComputerSearch();
   if (gameMode === 'computer' && chess.history().length >= 2) {
     chess.undo();
     chess.undo();
@@ -398,6 +402,7 @@ btnNew.addEventListener('click', startNewGame);
 
 document.querySelectorAll('input[name="mode"]').forEach((el) => {
   el.addEventListener('change', () => {
+    invalidateComputerSearch();
     applyModeFromUI();
     updateUI();
   });
