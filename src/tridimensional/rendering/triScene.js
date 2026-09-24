@@ -5,13 +5,6 @@ import { TriGameState } from '../gameState/triGameState.js';
 import { isInCheck } from '../rules/moveEngine.js';
 import { RULESET_NAME } from '../rules/cgTdcV1Rules.js';
 import { renderTriCapturedDisplay, renderTriMoveList } from '../ui/triHud.js';
-import {
-  applyValidatedTriMove,
-  beginTriSearchToken,
-  cancelTriSearch,
-  chooseTriComputerMove,
-  isTriSearchTokenCurrent,
-} from '../ai/searchClient.js';
 import { TriCameraControls } from './cameraControls.js';
 import { createBoardMeshes, createPieceMesh, pickWorldPoint, placeGroupAtCoord } from './pieceMeshes.js';
 
@@ -63,17 +56,7 @@ export class TriSceneController {
     /** @type {{ group: THREE.Group, from: THREE.Vector3, to: THREE.Vector3, elapsed: number, duration: number, onDone?: () => void }[]} */
     this.animations = [];
 
-    this.playMode = 'human';
-    /** @type {'w'|'b'} */
-    this.humanColor = 'w';
-    this.difficulty = 'medium';
-    this.thinking = false;
-    this.searchToken = 0;
-
     this.statusEl = root.querySelector('#tri-status');
-    this.thinkingEl = root.querySelector('#tri-thinking');
-    this.computerOptionsEl = root.querySelector('#tri-computer-options');
-    this.difficultyEl = root.querySelector('#tri-difficulty');
     this.resetBtn = root.querySelector('#tri-reset-camera');
     this.newGameBtn = root.querySelector('#tri-new-game');
     this.undoBtn = root.querySelector('#tri-undo');
@@ -141,151 +124,11 @@ export class TriSceneController {
     this.resignBtn?.addEventListener('click', () => this.handleResign());
     this.relocateBtn?.addEventListener('click', () => this.toggleRelocateMode());
 
-    root.querySelectorAll('input[name="tri-mode"]').forEach((input) => {
-      input.addEventListener('change', () => this.onModeSettingsChanged());
-    });
-    root.querySelectorAll('input[name="tri-player-color"]').forEach((input) => {
-      input.addEventListener('change', () => this.onModeSettingsChanged());
-    });
-    this.difficultyEl?.addEventListener('change', () => {
-      this.difficulty = this.difficultyEl?.value ?? 'medium';
-    });
-    this.onModeSettingsChanged(false);
-
     this.raf = requestAnimationFrame(this.animate);
-    this.maybeRunComputer();
-  }
-
-  onModeSettingsChanged(triggerReset = true) {
-    const modeInput = this.root.querySelector('input[name="tri-mode"]:checked');
-    this.playMode = modeInput?.value === 'computer' ? 'computer' : 'human';
-    this.computerOptionsEl?.classList.toggle('hidden', this.playMode !== 'computer');
-    this.difficulty = this.difficultyEl?.value ?? 'medium';
-    if (this.playMode === 'human') {
-      this.setThinking(false);
-      cancelTriSearch();
-      return;
-    }
-    const colorInput = this.root.querySelector('input[name="tri-player-color"]:checked');
-    const picked = colorInput?.value;
-    if (picked === 'w' || picked === 'b') {
-      this.humanColor = picked;
-    }
-    if (triggerReset) {
-      this.resetGame();
-    }
-  }
-
-  isComputerEnabled() {
-    return this.playMode === 'computer';
-  }
-
-  engineColor() {
-    return this.humanColor === 'w' ? 'b' : 'w';
-  }
-
-  isHumanTurn() {
-    return this.state.turn === this.humanColor;
-  }
-
-  isInputLocked() {
-    return this.thinking || (this.isComputerEnabled() && !this.isHumanTurn()) || this.state.status !== 'active';
-  }
-
-  setThinking(active) {
-    this.thinking = active;
-    this.thinkingEl?.classList.toggle('hidden', !active);
-    this.root.classList.toggle('tri-thinking', active);
-    if (this.undoBtn) this.undoBtn.disabled = active || this.state.position.history.length === 0;
-    if (this.newGameBtn) this.newGameBtn.disabled = active;
-    if (this.resignBtn) this.resignBtn.disabled = active;
-    if (this.relocateBtn) this.relocateBtn.disabled = active;
-  }
-
-  pickHumanColorForNewGame() {
-    const colorInput = this.root.querySelector('input[name="tri-player-color"]:checked');
-    if (colorInput?.value === 'random') {
-      this.humanColor = Math.random() < 0.5 ? 'w' : 'b';
-    } else if (colorInput?.value === 'b') {
-      this.humanColor = 'b';
-    } else {
-      this.humanColor = 'w';
-    }
-  }
-
-  async maybeRunComputer() {
-    if (!this.isComputerEnabled()) return;
-    if (this.state.status !== 'active') return;
-    if (this.state.turn !== this.engineColor()) return;
-    if (this.thinking) return;
-
-    this.searchToken = beginTriSearchToken();
-    const token = this.searchToken;
-    this.setThinking(true);
-    this.state.clearSelection();
-    this.legalTargets.clear();
-    this.applyHighlights();
-
-    let moveResult;
-    try {
-      moveResult = await chooseTriComputerMove(
-        this.state,
-        this.difficulty,
-        this.engineColor(),
-        token,
-      );
-    } catch {
-      if (isTriSearchTokenCurrent(token)) this.setThinking(false);
-      return;
-    }
-
-    const { move, stale } = moveResult;
-
-    if (!isTriSearchTokenCurrent(token) || stale) {
-      if (isTriSearchTokenCurrent(token)) this.setThinking(false);
-      return;
-    }
-
-    if (!move || this.state.status !== 'active') {
-      this.setThinking(false);
-      return;
-    }
-
-    if (!applyValidatedTriMove(this.state, move)) {
-      this.setThinking(false);
-      this.setStatus('Computer-Zug ungültig – bitte erneut versuchen.');
-      return;
-    }
-
-    if (move.kind === 'relocate_attack') {
-      syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
-      this.syncPieces(true, { relocatedBoard: move.boardIndex });
-    } else {
-      this.syncPieces(true, { fromKey: move.from, toKey: move.to });
-    }
-    this.refreshHud();
-    this.setThinking(false);
-    this.setStatus(this.turnStatusText());
-    if (this.isComputerEnabled() && this.state.status === 'active' && this.state.turn === this.engineColor()) {
-      this.maybeRunComputer();
-    }
-  }
-
-  executeHumanMoveSideEffects(result) {
-    if (result.kind !== 'moved' && result.kind !== 'relocated') return;
-    this.refreshHud();
-    this.setStatus(this.turnStatusText());
-    if (result.kind === 'relocated') {
-      syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
-      this.syncPieces(true, { relocatedBoard: result.move.boardIndex });
-    } else if (result.kind === 'moved') {
-      this.syncPieces(true, { fromKey: result.move.from, toKey: result.move.to });
-    }
-    this.maybeRunComputer();
   }
 
   toggleRelocateMode() {
-    if (this.isInputLocked()) return;
+    if (this.state.status !== 'active') return;
     this.relocateMode = !this.relocateMode;
     this.state.clearSelection();
     this.legalTargets.clear();
@@ -299,9 +142,6 @@ export class TriSceneController {
   }
 
   handleUndo() {
-    if (this.thinking) return;
-    cancelTriSearch();
-    this.searchToken = beginTriSearchToken();
     if (!this.state.undo()) return;
     this.relocateMode = false;
     this.relocateBtn?.classList.remove('btn-active');
@@ -309,13 +149,9 @@ export class TriSceneController {
     this.syncPieces(false);
     this.refreshHud();
     this.setStatus('Zug zurückgenommen.');
-    this.maybeRunComputer();
   }
 
   handleResign() {
-    if (this.isInputLocked()) return;
-    cancelTriSearch();
-    this.searchToken = beginTriSearchToken();
     if (this.state.status !== 'active') return;
     const side = this.state.turn;
     this.state.resignSide(side);
@@ -326,12 +162,6 @@ export class TriSceneController {
   }
 
   resetGame() {
-    cancelTriSearch();
-    this.searchToken = beginTriSearchToken();
-    this.setThinking(false);
-    if (this.isComputerEnabled()) {
-      this.pickHumanColorForNewGame();
-    }
     this.state.reset();
     this.relocateMode = false;
     this.relocateBtn?.classList.remove('btn-active');
@@ -339,15 +169,10 @@ export class TriSceneController {
     syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
     this.syncPieces(false);
     this.refreshHud();
-    const side = this.isComputerEnabled()
-      ? `Neue Partie · Du spielst ${this.humanColor === 'w' ? 'Weiß' : 'Schwarz'}.`
-      : 'Neue 3D-Partie gestartet. Weiß am Zug.';
-    this.setStatus(side);
-    this.maybeRunComputer();
+    this.setStatus('Neue 3D-Partie gestartet. Weiß am Zug.');
   }
 
   dispose() {
-    cancelTriSearch();
     document.body.classList.remove('tri-mode');
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
@@ -538,8 +363,7 @@ export class TriSceneController {
       renderTriMoveList(this.state, this.hud.moveListEl);
     }
     if (this.undoBtn) {
-      this.undoBtn.disabled =
-        this.thinking || this.state.position.history.length === 0 || this.state.status !== 'active';
+      this.undoBtn.disabled = this.state.position.history.length === 0 || this.state.status !== 'active';
     }
   }
 
@@ -561,7 +385,6 @@ export class TriSceneController {
   onPointerUp(event) {
     if (!this.controls || !this.camera || !this.renderer) return;
     if (this.controls.consumeTapGesture()) return;
-    if (this.isInputLocked() && !this.relocateMode) return;
     if (this.state.status !== 'active' && !this.relocateMode) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -604,16 +427,19 @@ export class TriSceneController {
     if (this.relocateMode && coord.surface === 'attack') {
       const result = this.state.relocateAttackBoard(coord.z);
       if (result.kind === 'relocated') {
+        syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
+        this.syncPieces(true, { relocatedBoard: coord.z });
         this.relocateMode = false;
         this.relocateBtn?.classList.remove('btn-active');
-        this.executeHumanMoveSideEffects(result);
+        this.refreshHud();
+        this.setStatus(this.turnStatusText());
       } else {
         this.setStatus('Angriffsbrett kann jetzt nicht bewegt werden.');
       }
       return;
     }
 
-    if (this.isInputLocked()) return;
+    const prevFrom = this.state.selectedKey;
     const result = this.state.selectOrMove(coord);
 
     if (result.kind === 'selected') {
@@ -641,7 +467,14 @@ export class TriSceneController {
 
     if (result.kind === 'moved') {
       this.legalTargets.clear();
-      this.executeHumanMoveSideEffects(result);
+      const fromKey = result.move.from;
+      const toKey = result.move.to;
+      this.syncPieces(true, { fromKey, toKey });
+      this.refreshHud();
+      this.setStatus(this.turnStatusText());
+      if (prevFrom !== fromKey) {
+        /* selection was switched */
+      }
     }
   }
 

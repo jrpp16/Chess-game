@@ -181,10 +181,6 @@ body {
   margin: 0 auto;
 }
 
-.tri-mode-card {
-  margin-bottom: 0.75rem;
-}
-
 .tri-toolbar {
   display: flex;
   flex-wrap: wrap;
