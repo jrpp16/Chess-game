@@ -230,6 +230,24 @@ body {
   text-align: center;
 }
 
+body.tri-mode {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+.tri-captured {
+  margin: 0.35rem 0;
+}
+
+.tri-side {
+  margin-top: 0.75rem;
+}
+
+.btn-active {
+  outline: 2px solid var(--accent, #66ccff);
+  outline-offset: 2px;
+}
+
 @media (orientation: portrait) {
   .tri-canvas-host {
     height: min(58vh, 640px);

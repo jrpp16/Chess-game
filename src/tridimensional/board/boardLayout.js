@@ -33,22 +33,30 @@ export function getAllBoardCells() {
   return cells;
 }
 
-const ATTACK_OFFSETS = [
-  { wx: -6.2, wy: 1.8, wz: -6.2 },
-  { wx: 6.2, wy: 1.8, wz: -6.2 },
-  { wx: -6.2, wy: 5.4, wz: 6.2 },
-  { wx: 6.2, wy: 5.4, wz: 6.2 },
+import { ATTACK_SLOT_HEIGHT } from '../rules/cgTdcV1Rules.js';
+
+const ATTACK_BASE = [
+  { wx: -6.2, wz: -6.2, boardIndex: 0 },
+  { wx: 6.2, wz: -6.2, boardIndex: 1 },
+  { wx: -6.2, wz: 6.2, boardIndex: 2 },
+  { wx: 6.2, wz: 6.2, boardIndex: 3 },
 ];
 
 const CELL = 0.95;
 const LEVEL_GAP = 3.6;
 
+function attackBoardY(boardIndex, slot) {
+  const heights = ATTACK_SLOT_HEIGHT[boardIndex] ?? ATTACK_SLOT_HEIGHT[0];
+  return slot === 1 ? heights.high : heights.low;
+}
+
 /**
  * Maps logical coordinates to world space (Y-up).
  * @param {import('./coordinates.js').TriCoord} coord
+ * @param {number[]=} attackSlots
  * @returns {WorldPoint}
  */
-export function coordToWorld(coord) {
+export function coordToWorld(coord, attackSlots = [0, 0, 0, 0]) {
   if (coord.surface === 'main') {
     return {
       wx: (coord.x - (MAIN_BOARD_SIZE - 1) / 2) * CELL,
@@ -57,10 +65,11 @@ export function coordToWorld(coord) {
     };
   }
 
-  const base = ATTACK_OFFSETS[coord.z] ?? ATTACK_OFFSETS[0];
+  const base = ATTACK_BASE[coord.z] ?? ATTACK_BASE[0];
+  const slot = attackSlots[coord.z] ?? 0;
   return {
     wx: base.wx + (coord.x - 0.5) * CELL,
-    wy: base.wy,
+    wy: attackBoardY(coord.z, slot),
     wz: base.wz + (coord.y - 0.5) * CELL,
   };
 }
@@ -69,12 +78,12 @@ export function coordToWorld(coord) {
  * @param {WorldPoint} point
  * @returns {import('./coordinates.js').TriCoord | null}
  */
-export function worldToNearestCell(point) {
+export function worldToNearestCell(point, attackSlots = [0, 0, 0, 0]) {
   let best = null;
   let bestDist = Infinity;
 
   for (const cell of getAllBoardCells()) {
-    const w = coordToWorld(cell);
+    const w = coordToWorld(cell, attackSlots);
     const dx = w.wx - point.wx;
     const dy = w.wy - point.wy;
     const dz = w.wz - point.wz;
