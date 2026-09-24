@@ -32,7 +32,9 @@ Ohne diese Einstellung wird weiterhin die rohe `index.html` aus dem Repo-Root mi
 - Klicksteuerung mit Anzeige legaler Züge
 - Schach / Schachmatt / Patt / Remis
 - Zugliste, Rückgängig, Neue Partie
-- Bauernumwandlung per Dialog
+- Bauernumwandlung per Dialog (touch-freundlich)
+- **Computergegner** (Minimax, Alpha-Beta, drei Schwierigkeiten)
+- Lokale **Erfahrungswerte** in IndexedDB (kein Machine Learning)
 
 ## Build
 

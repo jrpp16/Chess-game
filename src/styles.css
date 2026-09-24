@@ -70,11 +70,171 @@ body {
   align-items: start;
 }
 
+.square:disabled {
+  cursor: default;
+}
+
+.square:disabled:hover {
+  filter: none;
+}
+
+.board-panel {
+  position: relative;
+}
+
+.thinking-banner {
+  text-align: center;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: #b8d4ff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.thinking-banner.hidden {
+  display: none;
+}
+
+.mode-card,
+.stats-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.mode-card h2,
+.stats-card h2 {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.segmented {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.computer-options {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.computer-options.hidden {
+  display: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.field select {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--surface-elevated);
+  background: var(--surface-elevated);
+  color: var(--text);
+  font: inherit;
+}
+
+.color-field {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.color-field legend {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.color-field label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.stats-line {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.stats-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-panel {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  width: min(92vw, 360px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.modal-panel h3 {
+  margin: 0 0 1rem;
+}
+
+.promotion-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 @media (min-width: 860px) {
   .layout {
-    grid-template-columns: 1fr minmax(240px, 300px);
+    grid-template-columns: 1fr minmax(280px, 320px);
   }
 }
+
 
 .board-wrap {
   background: var(--surface);

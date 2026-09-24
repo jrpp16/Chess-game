@@ -18,21 +18,61 @@
           <span class="brand-icon" aria-hidden="true">♔</span>
           <h1>Schach</h1>
         </div>
-        <p class="tagline">Zwei Spieler · Regeln nach chess.js</p>
+        <p class="tagline">Lokal · chess.js · optional gegen Computer</p>
       </header>
 
       <main class="layout">
         <section class="board-panel" aria-label="Schachbrett">
+          <div id="thinking-banner" class="thinking-banner hidden" role="status" aria-live="polite">
+            Computer rechnet …
+          </div>
           <div class="board-wrap">
             <div id="board" class="board" role="grid" aria-label="8×8 Schachbrett"></div>
           </div>
         </section>
 
         <aside class="sidebar">
+          <div class="mode-card">
+            <h2>Modus</h2>
+            <div class="segmented" role="radiogroup" aria-label="Spielmodus">
+              <label class="segment">
+                <input type="radio" name="mode" value="human" checked />
+                Gegen Spieler
+              </label>
+              <label class="segment">
+                <input type="radio" name="mode" value="computer" />
+                Gegen Computer
+              </label>
+            </div>
+
+            <div id="computer-options" class="computer-options hidden">
+              <label class="field">
+                <span>Schwierigkeit</span>
+                <select id="difficulty">
+                  <option value="beginner">Anfänger</option>
+                  <option value="medium" selected>Mittel</option>
+                  <option value="hard">Schwer</option>
+                </select>
+              </label>
+              <fieldset class="field color-field">
+                <legend>Deine Farbe</legend>
+                <label><input type="radio" name="player-color" value="w" checked /> Weiß</label>
+                <label><input type="radio" name="player-color" value="b" /> Schwarz</label>
+                <label><input type="radio" name="player-color" value="random" /> Zufällig</label>
+              </fieldset>
+            </div>
+          </div>
+
           <div class="status-card">
             <p class="status-label">Am Zug</p>
             <p id="turn-indicator" class="turn-indicator">Weiß</p>
             <p id="game-status" class="game-status" role="status"></p>
+          </div>
+
+          <div class="stats-card">
+            <h2>Deine Bilanz (Computer-Partien)</h2>
+            <p id="stats-line" class="stats-line">Siege 0 · Niederlagen 0 · Remis 0</p>
+            <p class="stats-note">Lokal gespeicherte Erfahrungswerte (IndexedDB), kein Machine Learning.</p>
           </div>
 
           <div class="controls">
@@ -48,11 +88,25 @@
           </div>
 
           <p class="hint">
-            Figur anklicken, dann Zielfeld. Grün = legal, Gelb = Schach.
+            Figur anklicken, dann Zielfeld. Im Computermodus nur am eigenen Zug.
           </p>
         </aside>
       </main>
     </div>
+
+    <div id="promotion-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel">
+        <h3 id="promotion-title">Bauernumwandlung</h3>
+        <div class="promotion-choices">
+          <button type="button" data-piece="q" class="btn btn-secondary">Dame</button>
+          <button type="button" data-piece="r" class="btn btn-secondary">Turm</button>
+          <button type="button" data-piece="b" class="btn btn-secondary">Läufer</button>
+          <button type="button" data-piece="n" class="btn btn-secondary">Springer</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
