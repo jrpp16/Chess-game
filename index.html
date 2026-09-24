@@ -121,12 +121,29 @@
         <div class="tri-toolbar">
           <p id="tri-status" class="tri-status">3D-Schach wird geladen …</p>
           <div class="tri-toolbar-actions">
-            <button type="button" id="tri-reset-camera" class="btn btn-secondary">Kamera zurücksetzen</button>
+            <button type="button" id="tri-undo" class="btn btn-secondary">Rückgängig</button>
+            <button type="button" id="tri-resign" class="btn btn-secondary">Aufgeben</button>
+            <button type="button" id="tri-relocate" class="btn btn-secondary">Angriffsbrett</button>
+            <button type="button" id="tri-reset-camera" class="btn btn-secondary">Kamera</button>
             <button type="button" id="tri-new-game" class="btn btn-primary">Neue Partie</button>
           </div>
         </div>
+        <div class="tri-captured captured-bar captured-bar-top" aria-label="Geschlagene weiße Figuren">
+          <div id="tri-captured-by-black" class="captured-pieces"></div>
+          <span id="tri-material-top" class="material-advantage hidden"></span>
+        </div>
         <div id="tri-canvas-host" class="tri-canvas-host"></div>
-        <p class="tri-hint">1 Finger: drehen · 2 Finger: zoomen/verschieben · Tippen: Figur/Zielfeld</p>
+        <div class="tri-captured captured-bar captured-bar-bottom" aria-label="Geschlagene schwarze Figuren">
+          <div id="tri-captured-by-white" class="captured-pieces"></div>
+          <span id="tri-material-bottom" class="material-advantage hidden"></span>
+        </div>
+        <div class="tri-side">
+          <div class="moves-card">
+            <h2>Züge (CG-TDC v1)</h2>
+            <ol id="tri-move-list" class="move-list"></ol>
+          </div>
+        </div>
+        <p class="tri-hint">1 Finger: drehen · 2 Finger: zoomen/verschieben · Tippen: nur legale Züge</p>
       </div>
     </div>
 

@@ -3,7 +3,8 @@ import { createInitialPosition } from './startPositions.js';
 
 describe('tri start positions', () => {
   it('places white on z=0 and black on z=2', () => {
-    const pieces = createInitialPosition();
+    const pos = createInitialPosition();
+    const pieces = pos.pieces;
     let whiteOnBottom = 0;
     let blackOnTop = 0;
 

@@ -4,14 +4,14 @@ import { createCoord } from '../board/coordinates.js';
 
 describe('tri game state', () => {
   it('starts with 32 pieces on main levels', () => {
-    const pieces = createInitialPosition();
-    expect(pieces.size).toBe(32);
+    const pos = createInitialPosition();
+    expect(pos.pieces.size).toBe(32);
   });
 
-  it('selects and moves a piece without separate tracking', () => {
+  it('selects and moves a legal pawn double step', () => {
     const state = new TriGameState();
-    const from = createCoord(0, 0, 0, 'main');
-    const to = createCoord(0, 2, 0, 'main');
+    const from = createCoord(4, 1, 0, 'main');
+    const to = createCoord(4, 3, 0, 'main');
 
     const selected = state.selectOrMove(from);
     expect(selected.kind).toBe('selected');
@@ -19,7 +19,7 @@ describe('tri game state', () => {
     const moved = state.selectOrMove(to);
     expect(moved.kind).toBe('moved');
     expect(state.getPieceAt(from)).toBeNull();
-    expect(state.getPieceAt(to)?.type).toBe('r');
+    expect(state.getPieceAt(to)?.type).toBe('p');
   });
 
   it('resets on new game', () => {

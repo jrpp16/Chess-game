@@ -1,9 +1,33 @@
 import * as THREE from 'three';
 import { coordKey, parseCoordKey } from '../board/coordinates.js';
-import { worldToNearestCell } from '../board/boardLayout.js';
+import { coordToWorld, worldToNearestCell } from '../board/boardLayout.js';
 import { TriGameState } from '../gameState/triGameState.js';
+import { isInCheck } from '../rules/moveEngine.js';
+import { RULESET_NAME } from '../rules/cgTdcV1Rules.js';
+import { renderTriCapturedDisplay, renderTriMoveList } from '../ui/triHud.js';
 import { TriCameraControls } from './cameraControls.js';
-import { createBoardMeshes, createPieceMesh, pickWorldPoint } from './pieceMeshes.js';
+import { createBoardMeshes, createPieceMesh, pickWorldPoint, placeGroupAtCoord } from './pieceMeshes.js';
+
+const HIGHLIGHT = {
+  selected: { color: 0x33aaff, intensity: 0.35 },
+  move: { color: 0x44ff88, intensity: 0.28 },
+  capture: { color: 0xff6644, intensity: 0.38 },
+  last: { color: 0xffcc44, intensity: 0.22 },
+  check: { color: 0xff2244, intensity: 0.55 },
+};
+
+/**
+ * @param {Map<string, THREE.Mesh>} cellMeshes
+ * @param {number[]} attackSlots
+ */
+function syncAttackBoardGeometry(cellMeshes, attackSlots) {
+  for (const [key, tile] of cellMeshes.entries()) {
+    const coord = parseCoordKey(key);
+    if (!coord || coord.surface !== 'attack') continue;
+    const world = coordToWorld(coord, attackSlots);
+    tile.position.set(world.wx, world.wy, world.wz);
+  }
+}
 
 export class TriSceneController {
   /**
@@ -24,10 +48,27 @@ export class TriSceneController {
     this.pieceMeshes = new Map();
     /** @type {Map<string, THREE.Mesh>} */
     this.cellMeshes = new Map();
+    /** @type {Map<string, 'move'|'capture'>} */
+    this.legalTargets = new Map();
+    this.relocateMode = false;
     this.raf = 0;
+    this.clock = new THREE.Clock();
+    /** @type {{ group: THREE.Group, from: THREE.Vector3, to: THREE.Vector3, elapsed: number, duration: number, onDone?: () => void }[]} */
+    this.animations = [];
+
     this.statusEl = root.querySelector('#tri-status');
     this.resetBtn = root.querySelector('#tri-reset-camera');
     this.newGameBtn = root.querySelector('#tri-new-game');
+    this.undoBtn = root.querySelector('#tri-undo');
+    this.resignBtn = root.querySelector('#tri-resign');
+    this.relocateBtn = root.querySelector('#tri-relocate');
+    this.hud = {
+      topPiecesEl: root.querySelector('#tri-captured-by-black'),
+      bottomPiecesEl: root.querySelector('#tri-captured-by-white'),
+      topAdvantageEl: root.querySelector('#tri-material-top'),
+      bottomAdvantageEl: root.querySelector('#tri-material-bottom'),
+      moveListEl: root.querySelector('#tri-move-list'),
+    };
 
     this.onResize = this.onResize.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
@@ -35,6 +76,8 @@ export class TriSceneController {
   }
 
   mount() {
+    document.body.classList.add('tri-mode');
+
     const canvasHost = this.root.querySelector('#tri-canvas-host');
     if (!canvasHost) {
       throw new Error('tri canvas host missing');
@@ -65,29 +108,72 @@ export class TriSceneController {
     rim.position.set(-10, 8, -12);
     this.scene.add(rim);
 
-    this.cellMeshes = createBoardMeshes(this.scene);
+    this.cellMeshes = createBoardMeshes(this.scene, this.state.attackSlots);
     this.controls = new TriCameraControls(this.camera, this.renderer.domElement);
     this.controls.updateCamera();
 
-    this.syncPieces();
-    this.setStatus('Figur antippen, dann Zielfeld (Phase 1: ohne Regelprüfung).');
+    this.syncPieces(false);
+    this.refreshHud();
+    this.setStatus(`${RULESET_NAME} · Weiß am Zug`);
 
     window.addEventListener('resize', this.onResize);
     this.renderer.domElement.addEventListener('pointerup', this.onPointerUp);
     this.resetBtn?.addEventListener('click', () => this.controls?.reset());
     this.newGameBtn?.addEventListener('click', () => this.resetGame());
+    this.undoBtn?.addEventListener('click', () => this.handleUndo());
+    this.resignBtn?.addEventListener('click', () => this.handleResign());
+    this.relocateBtn?.addEventListener('click', () => this.toggleRelocateMode());
 
     this.raf = requestAnimationFrame(this.animate);
   }
 
+  toggleRelocateMode() {
+    if (this.state.status !== 'active') return;
+    this.relocateMode = !this.relocateMode;
+    this.state.clearSelection();
+    this.legalTargets.clear();
+    this.applyHighlights();
+    this.setStatus(
+      this.relocateMode
+        ? 'Angriffsbrett antippen (LOW ↔ HIGH). Nur wenn keine gegnerischen Figuren darauf stehen.'
+        : this.turnStatusText(),
+    );
+    this.relocateBtn?.classList.toggle('btn-active', this.relocateMode);
+  }
+
+  handleUndo() {
+    if (!this.state.undo()) return;
+    this.relocateMode = false;
+    this.relocateBtn?.classList.remove('btn-active');
+    syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
+    this.syncPieces(false);
+    this.refreshHud();
+    this.setStatus('Zug zurückgenommen.');
+  }
+
+  handleResign() {
+    if (this.state.status !== 'active') return;
+    const side = this.state.turn;
+    this.state.resignSide(side);
+    this.relocateMode = false;
+    this.syncPieces(false);
+    this.refreshHud();
+    this.setStatus(side === 'w' ? 'Weiß gibt auf. Schwarz gewinnt.' : 'Schwarz gibt auf. Weiß gewinnt.');
+  }
+
   resetGame() {
     this.state.reset();
-    this.syncPieces();
-    this.clearHighlights();
-    this.setStatus('Neue 3D-Partie gestartet.');
+    this.relocateMode = false;
+    this.relocateBtn?.classList.remove('btn-active');
+    this.animations = [];
+    syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
+    this.syncPieces(false);
+    this.refreshHud();
+    this.setStatus('Neue 3D-Partie gestartet. Weiß am Zug.');
   }
 
   dispose() {
+    document.body.classList.remove('tri-mode');
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     this.renderer?.domElement.removeEventListener('pointerup', this.onPointerUp);
@@ -126,57 +212,180 @@ export class TriSceneController {
 
   animate() {
     this.raf = requestAnimationFrame(this.animate);
+    const dt = this.clock.getDelta();
+    for (let i = this.animations.length - 1; i >= 0; i -= 1) {
+      const anim = this.animations[i];
+      anim.elapsed += dt;
+      const t = Math.min(1, anim.elapsed / anim.duration);
+      const eased = t * t * (3 - 2 * t);
+      anim.group.position.lerpVectors(anim.from, anim.to, eased);
+      if (t >= 1) {
+        anim.onDone?.();
+        this.animations.splice(i, 1);
+      }
+    }
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
   }
 
-  syncPieces() {
-    for (const mesh of this.pieceMeshes.values()) {
-      this.scene?.remove(mesh);
+  /**
+   * @param {boolean} animateMoves
+   * @param {{ fromKey?: string, toKey?: string, relocatedBoard?: number }} animHint
+   */
+  syncPieces(animateMoves = false, animHint = {}) {
+    const slots = this.state.attackSlots;
+    const nextKeys = new Set(this.state.pieces.keys());
+
+    if (animateMoves && animHint.fromKey && animHint.toKey && this.pieceMeshes.has(animHint.fromKey)) {
+      const group = this.pieceMeshes.get(animHint.fromKey);
+      this.pieceMeshes.delete(animHint.fromKey);
+      if (group) {
+        group.userData.cellKey = animHint.toKey;
+        this.pieceMeshes.set(animHint.toKey, group);
+      }
     }
-    this.pieceMeshes.clear();
+
+    for (const key of [...this.pieceMeshes.keys()]) {
+      if (!nextKeys.has(key)) {
+        const mesh = this.pieceMeshes.get(key);
+        if (mesh) this.scene?.remove(mesh);
+        this.pieceMeshes.delete(key);
+      }
+    }
 
     for (const [key, piece] of this.state.pieces.entries()) {
       const coord = parseCoordKey(key);
       if (!coord) continue;
       const selected = this.state.selectedKey === key;
-      const group = createPieceMesh(piece, selected);
-      group.userData.cellKey = key;
-      const worldMesh = this.cellMeshes.get(key);
-      if (worldMesh) {
-        group.position.copy(worldMesh.position);
-        group.position.y += 0.08;
+      let group = this.pieceMeshes.get(key);
+
+      if (!group) {
+        group = createPieceMesh(piece, selected);
+        group.userData.cellKey = key;
+        placeGroupAtCoord(group, coord, slots);
+        this.scene?.add(group);
+        this.pieceMeshes.set(key, group);
+        continue;
       }
-      this.scene?.add(group);
-      this.pieceMeshes.set(key, group);
+
+      this.updatePieceSelectionVisual(group, piece, selected);
+      const target = new THREE.Vector3();
+      const world = coordToWorld(coord, slots);
+      target.set(world.wx, world.wy + 0.08, world.wz);
+
+      const shouldAnimate =
+        animateMoves &&
+        ((animHint.fromKey === key && animHint.toKey) ||
+          (animHint.relocatedBoard != null && coord.surface === 'attack' && coord.z === animHint.relocatedBoard));
+
+      if (shouldAnimate && animHint.fromKey === key && animHint.toKey) {
+        const from = group.position.clone();
+        this.animations.push({
+          group,
+          from,
+          to: target.clone(),
+          elapsed: 0,
+          duration: 0.28,
+        });
+      } else if (shouldAnimate && animHint.relocatedBoard != null) {
+        const from = group.position.clone();
+        this.animations.push({
+          group,
+          from,
+          to: target.clone(),
+          elapsed: 0,
+          duration: 0.35,
+        });
+      } else {
+        group.position.copy(target);
+      }
     }
 
-    this.highlightSelection();
+    this.applyHighlights();
   }
 
-  highlightSelection() {
-    this.clearHighlights();
-    if (!this.state.selectedKey) return;
-    const tile = this.cellMeshes.get(this.state.selectedKey);
-    if (tile && tile.material instanceof THREE.MeshStandardMaterial) {
-      tile.material.emissive = new THREE.Color(0x33aaff);
-      tile.material.emissiveIntensity = 0.35;
-    }
+  updatePieceSelectionVisual(group, piece, selected) {
+    group.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh) || !(obj.material instanceof THREE.MeshStandardMaterial)) return;
+      const accent = piece.color === 'w' ? 0x66ccff : 0x8844ff;
+      obj.material.emissive.setHex(selected ? accent : 0x000000);
+      obj.material.emissiveIntensity = selected ? 0.45 : 0;
+    });
   }
 
-  clearHighlights() {
+  applyHighlights() {
     for (const tile of this.cellMeshes.values()) {
       if (tile.material instanceof THREE.MeshStandardMaterial) {
-        tile.material.emissive = new THREE.Color(0x000000);
+        tile.material.emissive.setHex(0x000000);
         tile.material.emissiveIntensity = 0;
       }
     }
+
+    const paint = (key, kind) => {
+      const tile = this.cellMeshes.get(key);
+      const spec = HIGHLIGHT[kind];
+      if (tile && tile.material instanceof THREE.MeshStandardMaterial && spec) {
+        tile.material.emissive.setHex(spec.color);
+        tile.material.emissiveIntensity = spec.intensity;
+      }
+    };
+
+    const last = this.state.lastMove;
+    if (last && last.from && last.to) {
+      paint(last.from, 'last');
+      paint(last.to, 'last');
+    }
+
+    if (this.state.selectedKey) {
+      paint(this.state.selectedKey, 'selected');
+    }
+
+    for (const [key, kind] of this.legalTargets.entries()) {
+      paint(key, kind);
+    }
+
+    for (const color of ['w', 'b']) {
+      if (!isInCheck(this.state.position, color)) continue;
+      for (const [key, piece] of this.state.pieces.entries()) {
+        if (piece.type === 'k' && piece.color === color) {
+          paint(key, 'check');
+        }
+      }
+    }
+  }
+
+  refreshHud() {
+    if (this.hud.topPiecesEl && this.hud.bottomPiecesEl) {
+      renderTriCapturedDisplay(this.state, this.hud);
+    }
+    if (this.hud.moveListEl) {
+      renderTriMoveList(this.state, this.hud.moveListEl);
+    }
+    if (this.undoBtn) {
+      this.undoBtn.disabled = this.state.position.history.length === 0 || this.state.status !== 'active';
+    }
+  }
+
+  turnStatusText() {
+    if (this.state.status === 'checkmate') {
+      return `Schachmatt. ${this.state.winner === 'w' ? 'Weiß' : 'Schwarz'} gewinnt.`;
+    }
+    if (this.state.status === 'stalemate') {
+      return 'Patt · Remis.';
+    }
+    if (this.state.status === 'resigned') {
+      return `${this.state.winner === 'w' ? 'Weiß' : 'Schwarz'} gewinnt durch Aufgabe.`;
+    }
+    const side = this.state.turn === 'w' ? 'Weiß' : 'Schwarz';
+    const check = isInCheck(this.state.position, this.state.turn);
+    return check ? `${side} am Zug · Schach!` : `${side} am Zug`;
   }
 
   onPointerUp(event) {
     if (!this.controls || !this.camera || !this.renderer) return;
     if (this.controls.consumeTapGesture()) return;
+    if (this.state.status !== 'active' && !this.relocateMode) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -202,7 +411,10 @@ export class TriSceneController {
 
     if (!cellKey) {
       const world = pickWorldPoint(event.clientX, event.clientY, this.camera, this.renderer);
-      const nearest = worldToNearestCell({ wx: world.x, wy: world.y, wz: world.z });
+      const nearest = worldToNearestCell(
+        { wx: world.x, wy: world.y, wz: world.z },
+        this.state.attackSlots,
+      );
       if (nearest) {
         cellKey = coordKey(nearest);
       }
@@ -212,15 +424,57 @@ export class TriSceneController {
     const coord = parseCoordKey(cellKey);
     if (!coord) return;
 
+    if (this.relocateMode && coord.surface === 'attack') {
+      const result = this.state.relocateAttackBoard(coord.z);
+      if (result.kind === 'relocated') {
+        syncAttackBoardGeometry(this.cellMeshes, this.state.attackSlots);
+        this.syncPieces(true, { relocatedBoard: coord.z });
+        this.relocateMode = false;
+        this.relocateBtn?.classList.remove('btn-active');
+        this.refreshHud();
+        this.setStatus(this.turnStatusText());
+      } else {
+        this.setStatus('Angriffsbrett kann jetzt nicht bewegt werden.');
+      }
+      return;
+    }
+
+    const prevFrom = this.state.selectedKey;
     const result = this.state.selectOrMove(coord);
-    this.syncPieces();
 
     if (result.kind === 'selected') {
-      this.setStatus(`${result.piece.color === 'w' ? 'Weiß' : 'Schwarz'} ${result.piece.type.toUpperCase()} ausgewählt`);
-    } else if (result.kind === 'moved') {
-      this.setStatus('Figur bewegt (Phase 1 – ohne Regelprüfung).');
-    } else if (result.kind === 'cleared') {
-      this.setStatus('Auswahl aufgehoben.');
+      this.legalTargets.clear();
+      for (const move of result.legal ?? []) {
+        if (move.to) {
+          this.legalTargets.set(move.to, move.capture ? 'capture' : 'move');
+        }
+      }
+      this.syncPieces(false);
+      this.setStatus(this.turnStatusText());
+      return;
+    }
+
+    if (result.kind === 'cleared') {
+      this.legalTargets.clear();
+      this.syncPieces(false);
+      this.setStatus(this.turnStatusText());
+      return;
+    }
+
+    if (result.kind === 'illegal' || result.kind === 'ignored') {
+      return;
+    }
+
+    if (result.kind === 'moved') {
+      this.legalTargets.clear();
+      const fromKey = result.move.from;
+      const toKey = result.move.to;
+      this.syncPieces(true, { fromKey, toKey });
+      this.refreshHud();
+      this.setStatus(this.turnStatusText());
+      if (prevFrom !== fromKey) {
+        /* selection was switched */
+      }
     }
   }
 

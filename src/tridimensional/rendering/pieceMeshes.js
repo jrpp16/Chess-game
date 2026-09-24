@@ -60,7 +60,11 @@ export function createPieceMesh(piece, selected = false) {
   return group;
 }
 
-export function createBoardMeshes(scene) {
+/**
+ * @param {THREE.Scene} scene
+ * @param {number[]=} attackSlots
+ */
+export function createBoardMeshes(scene, attackSlots = [0, 0, 0, 0]) {
   const lightSquare = new THREE.MeshStandardMaterial({
     color: 0x6eb5ff,
     metalness: 0.35,
@@ -86,7 +90,7 @@ export function createBoardMeshes(scene) {
   const cellMeshes = new Map();
 
   for (const cell of getAllBoardCells()) {
-    const world = coordToWorld(cell);
+    const world = coordToWorld(cell, attackSlots);
     const isAttack = cell.surface === 'attack';
     const isLight = (cell.x + cell.y + cell.z) % 2 === 0;
     const mat = isAttack ? attackMat : isLight ? lightSquare : darkSquare;
@@ -94,6 +98,9 @@ export function createBoardMeshes(scene) {
     tile.position.set(world.wx, world.wy, world.wz);
     tile.userData.cellKey = coordKey(cell);
     tile.userData.selectable = false;
+    if (cell.surface === 'attack') {
+      tile.userData.attackIndex = cell.z;
+    }
     scene.add(tile);
     cellMeshes.set(coordKey(cell), tile);
   }
@@ -105,8 +112,8 @@ export function createBoardMeshes(scene) {
  * @param {THREE.Group} group
  * @param {import('../board/coordinates.js').TriCoord} coord
  */
-export function placeGroupAtCoord(group, coord) {
-  const world = coordToWorld(coord);
+export function placeGroupAtCoord(group, coord, attackSlots = [0, 0, 0, 0]) {
+  const world = coordToWorld(coord, attackSlots);
   group.position.set(world.wx, world.wy + 0.08, world.wz);
 }
 

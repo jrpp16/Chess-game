@@ -1,1 +1,1 @@
-export { createInitialPosition } from '../gameState/triGameState.js';
+export { createInitialTriPosition as createInitialPosition } from '../rules/moveEngine.js';
