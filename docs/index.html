@@ -10,8 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/Chess-game/assets/index-0qAX8vuA.js"></script>
-    <link rel="stylesheet" crossorigin href="/Chess-game/assets/index-D6utwG0b.css">
+    <script type="module" crossorigin src="/Chess-game/assets/index-BXIBz6y-.js"></script>
+    <link rel="stylesheet" crossorigin href="/Chess-game/assets/index-CfYgcJcK.css">
   </head>
   <body>
     <div id="app">
@@ -28,8 +28,16 @@
           <div id="thinking-banner" class="thinking-banner hidden" role="status" aria-live="polite">
             Computer rechnet …
           </div>
+          <div class="captured-bar captured-bar-top" aria-label="Von Schwarz geschlagene weiße Figuren">
+            <div id="captured-by-black" class="captured-pieces"></div>
+            <span id="material-advantage-top" class="material-advantage hidden" aria-live="polite"></span>
+          </div>
           <div class="board-wrap">
             <div id="board" class="board" role="grid" aria-label="8×8 Schachbrett"></div>
+          </div>
+          <div class="captured-bar captured-bar-bottom" aria-label="Von Weiß geschlagene schwarze Figuren">
+            <div id="captured-by-white" class="captured-pieces"></div>
+            <span id="material-advantage-bottom" class="material-advantage hidden" aria-live="polite"></span>
           </div>
         </section>
 

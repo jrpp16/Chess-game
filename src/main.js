@@ -6,6 +6,7 @@ import {
   getExperienceRepository,
   persistFinishedGame,
 } from './learning/experienceStore.js';
+import { renderCapturedDisplay } from './ui/capturedPieces.js';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
@@ -35,6 +36,10 @@ const computerOptions = document.getElementById('computer-options');
 const difficultyEl = document.getElementById('difficulty');
 const statsLine = document.getElementById('stats-line');
 const promotionModal = document.getElementById('promotion-modal');
+const capturedByBlackEl = document.getElementById('captured-by-black');
+const capturedByWhiteEl = document.getElementById('captured-by-white');
+const materialAdvantageTopEl = document.getElementById('material-advantage-top');
+const materialAdvantageBottomEl = document.getElementById('material-advantage-bottom');
 
 const experienceRepo = getExperienceRepository();
 
@@ -319,6 +324,12 @@ function updateStatus() {
 
 function updateUI() {
   renderBoard();
+  renderCapturedDisplay(chess, {
+    topPiecesEl: capturedByBlackEl,
+    bottomPiecesEl: capturedByWhiteEl,
+    topAdvantageEl: materialAdvantageTopEl,
+    bottomAdvantageEl: materialAdvantageBottomEl,
+  });
   formatMoveHistory();
   updateStatus();
 }

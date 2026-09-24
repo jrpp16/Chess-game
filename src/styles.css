@@ -82,6 +82,65 @@ body {
   position: relative;
 }
 
+.captured-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: var(--board-size);
+  max-width: 100%;
+  margin: 0 auto;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.25rem;
+}
+
+.captured-bar-top {
+  margin-bottom: 0.45rem;
+}
+
+.captured-bar-bottom {
+  margin-top: 0.45rem;
+}
+
+.captured-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 1;
+  min-height: 1.5rem;
+}
+
+.captured-piece {
+  font-size: clamp(1rem, 3.2vw, 1.45rem);
+  line-height: 1;
+  user-select: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.captured-piece.white {
+  color: #fff;
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.35);
+}
+
+.captured-piece.black {
+  color: #1a1a1a;
+}
+
+.material-advantage {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffb020;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(255, 176, 32, 0.12);
+}
+
+.material-advantage.hidden {
+  display: none;
+}
+
 .thinking-banner {
   text-align: center;
   margin-bottom: 0.75rem;
