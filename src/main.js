@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import './styles.css';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const PIECE_UNICODE = {
