@@ -42,3 +42,7 @@ Ohne diese Einstellung wird weiterhin die rohe `index.html` aus dem Repo-Root mi
 npm run build
 npm run preview
 ```
+
+## Agenten & andere Assistenten
+
+Für einen **einheitlichen Workflow** (Scope, Git, Tests, Übergabe zwischen Agenten): siehe **[AGENTS.md](./AGENTS.md)**.
