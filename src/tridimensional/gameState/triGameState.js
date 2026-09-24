@@ -134,7 +134,18 @@ export class TriGameState {
     return materialAdvantage(this.position);
   }
 
-  clearSelection() {
+  /** @param {object} move */
+  applyEngineMove(move) {
+    if (this.position.status !== 'active') return { kind: 'ignored' };
+    const applied = applyMove(this.position, move);
+    if (!applied) return { kind: 'illegal' };
+    this.position = applied;
     this.selectedKey = null;
+    if (move.kind === 'relocate_attack') {
+      this.moveHistorySan.push(`A${move.boardIndex}:${move.toSlot === 1 ? 'HIGH' : 'LOW'}`);
+    } else {
+      this.moveHistorySan.push(`${move.from}→${move.to}`);
+    }
+    return { kind: 'moved', move };
   }
 }
