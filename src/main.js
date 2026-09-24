@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
 import './styles.css';
-import { chooseComputerMove, defaultPromotion } from './engine/computer.js';
+import { chooseComputerMoveAsync, defaultPromotion, logSearchStats } from './engine/computer.js';
 import { moveKey } from './engine/evaluation.js';
 import {
   getExperienceRepository,
@@ -197,24 +197,20 @@ function afterMove() {
   }
 }
 
-async function buildMoveBias(chessBoard) {
+async function buildMoveBiasMap(chessBoard) {
   const moves = chessBoard.moves({ verbose: true });
-  const cache = new Map();
+  /** @type {Record<string, number>} */
+  const map = {};
   await experienceRepo.init();
   for (const move of moves) {
-    const key = moveKey(chessBoard, move.lan);
-    cache.set(key, await experienceRepo.getMoveBias(key));
+    const key = `${move.from}${move.to}${move.promotion ?? ''}`;
+    map[key] = await experienceRepo.getMoveBias(moveKey(chessBoard, move.lan));
   }
-  return (board, move) => {
-    const key = moveKey(board, move.lan ?? `${move.from}${move.to}${move.promotion ?? ''}`);
-    return cache.get(key) ?? 0;
-  };
+  return map;
 }
 
 function scheduleComputerMove() {
-  window.setTimeout(() => {
-    runComputerMove();
-  }, 16);
+  runComputerMove();
 }
 
 async function runComputerMove() {
@@ -225,10 +221,15 @@ async function runComputerMove() {
   thinkingBanner.classList.remove('hidden');
   updateUI();
 
-  await new Promise((resolve) => window.setTimeout(resolve, 0));
+  const moveBiasMap = await buildMoveBiasMap(chess);
+  const { move, stats } = await chooseComputerMoveAsync(
+    chess.fen(),
+    difficulty,
+    computerColor,
+    moveBiasMap,
+  );
 
-  const moveBias = await buildMoveBias(chess);
-  const move = chooseComputerMove(chess, difficulty, computerColor, { getMoveBias: moveBias });
+  logSearchStats(stats, difficulty);
 
   isComputerThinking = false;
   thinkingBanner.classList.add('hidden');
@@ -238,8 +239,7 @@ async function runComputerMove() {
     return;
   }
 
-  const promotion = move.promotion ?? defaultPromotion();
-  chess.move({ from: move.from, to: move.to, promotion });
+  chess.move({ from: move.from, to: move.to, promotion: move.promotion ?? defaultPromotion() });
   selectedSquare = null;
   updateUI();
 
