@@ -10,8 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/Chess-game/assets/index-BXIBz6y-.js"></script>
-    <link rel="stylesheet" crossorigin href="/Chess-game/assets/index-CfYgcJcK.css">
+    <script type="module" crossorigin src="/Chess-game/assets/index-kYfl4cBL.js"></script>
+    <link rel="stylesheet" crossorigin href="/Chess-game/assets/index-DTnFmGNb.css">
   </head>
   <body>
     <div id="app">
@@ -20,9 +20,24 @@
           <span class="brand-icon" aria-hidden="true">♔</span>
           <h1>Schach</h1>
         </div>
-        <p class="tagline">Lokal · chess.js · optional gegen Computer</p>
+        <p class="tagline">Klassisch · 3D Tri-Dimensional · chess.js</p>
       </header>
 
+      <div class="variant-card">
+        <h2>Spielvariante</h2>
+        <div class="segmented" role="radiogroup" aria-label="Spielvariante">
+          <label class="segment">
+            <input type="radio" name="game-variant" value="classic" checked />
+            Klassisches Schach
+          </label>
+          <label class="segment">
+            <input type="radio" name="game-variant" value="tri" />
+            3D-Schach
+          </label>
+        </div>
+      </div>
+
+      <div id="classic-root">
       <main class="layout">
         <section class="board-panel" aria-label="Schachbrett">
           <div id="thinking-banner" class="thinking-banner hidden" role="status" aria-live="polite">
@@ -102,6 +117,19 @@
           </p>
         </aside>
       </main>
+      </div>
+
+      <div id="tri-root" class="tri-root hidden" aria-label="3D-Schach">
+        <div class="tri-toolbar">
+          <p id="tri-status" class="tri-status">3D-Schach wird geladen …</p>
+          <div class="tri-toolbar-actions">
+            <button type="button" id="tri-reset-camera" class="btn btn-secondary">Kamera zurücksetzen</button>
+            <button type="button" id="tri-new-game" class="btn btn-primary">Neue Partie</button>
+          </div>
+        </div>
+        <div id="tri-canvas-host" class="tri-canvas-host"></div>
+        <p class="tri-hint">1 Finger: drehen · 2 Finger: zoomen/verschieben · Tippen: Figur/Zielfeld</p>
+      </div>
     </div>
 
     <div id="promotion-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
