@@ -82,6 +82,10 @@ export function scoreMove(move, chess, ctx) {
     score += 800000 + victim * 10 - attacker;
   }
 
+  if (move.san?.includes('#')) {
+    score += 2000000;
+  }
+
   if (move.san?.includes('+')) {
     score += 500000;
   }

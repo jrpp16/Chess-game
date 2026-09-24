@@ -117,7 +117,14 @@ function sideMobility(chess, color) {
   }
   const parts = chess.fen().split(' ');
   parts[1] = color;
-  return new Chess(parts.join(' ')).moves().length;
+  // En passant is only valid for the side that just moved two ranks; flipping side
+  // without clearing it produces illegal FEN and can abort the entire search.
+  parts[3] = '-';
+  try {
+    return new Chess(parts.join(' ')).moves().length;
+  } catch {
+    return chess.moves().length;
+  }
 }
 
 /**
